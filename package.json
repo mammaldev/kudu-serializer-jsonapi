@@ -5,7 +5,8 @@
   "scripts": {
     "compile": "babel -d lib/ src/",
     "lint": "eslint {src,test}/*.js; true",
-    "test": "mocha test/ -R spec --recursive --compilers js:babel/register"
+    "test": "mocha test/ -R spec --recursive --compilers js:babel/register",
+    "prepublish": "npm run compile"
   },
   "devDependencies": {
     "babel": "^5.8.29",
