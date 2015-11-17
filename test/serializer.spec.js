@@ -104,6 +104,15 @@ describe('Serializer', () => {
       expect(JSON.parse(serialized).data).to.be.an('array');
     });
 
+    it('should return an array if the relevant flag is set', () => {
+      let instances = [
+        new Model({ name: '1', id: '1' }),
+        new Model({ name: '2', id: '2' }),
+      ];
+      let serialized = Serialize.toJSON(instances, { stringify: false });
+      expect(serialized.data).to.be.an('array');
+    });
+
     it('should include relationships', () => {
       let instance = new Model({ name: 'test', id: '1' });
       let serialized = Serialize.toJSON(instance);

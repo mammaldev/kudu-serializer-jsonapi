@@ -44,7 +44,11 @@ export default {
         ),
       };
 
-      return JSON.stringify(toSerialize);
+      if ( stringify ) {
+        return JSON.stringify(toSerialize);
+      }
+
+      return toSerialize;
     }
 
     // If we have a single instance we need to serialize it to a JSON API
