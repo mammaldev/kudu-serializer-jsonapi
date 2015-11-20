@@ -134,8 +134,11 @@ function buildResource( instance, requireId ) {
     id: instance.id,
     type: instance.constructor.singular,
     attributes: buildAttributes(instance),
-    relationships,
   };
+
+  if ( Object.keys(relationships).length ) {
+    resource.relationships = relationships;
+  }
 
   if ( included.length ) {
     resource.included = included;

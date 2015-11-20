@@ -141,6 +141,12 @@ describe('Serializer', () => {
       });
     });
 
+    it('should not include a "relationships" key when there are no relationships', () => {
+      let instance = new Child({ name: 'test', id: '1' });
+      let serialized = Serialize.toJSON(instance);
+      expect(JSON.parse(serialized).data).to.not.have.property('relationships');
+    });
+
     it('should include a resource identifier for relationships where possible', () => {
       let instance = new Model({
         name: 'test',
@@ -227,7 +233,6 @@ describe('Serializer', () => {
           type: 'single',
           id: '2',
           attributes: { name: 'child' },
-          relationships: {},
         },
       ]);
     });
