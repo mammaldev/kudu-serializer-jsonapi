@@ -129,12 +129,19 @@ function buildResource( instance, requireId ) {
     throw new Error('Expected an "id" property.');
   }
 
-  return {
+  const { relationships, included } = buildRelationships(instance);
+  const resource = {
     id: instance.id,
     type: instance.constructor.singular,
     attributes: buildAttributes(instance),
-    relationships: buildRelationships(instance),
+    relationships,
   };
+
+  if ( included.length ) {
+    resource.included = included;
+  }
+
+  return resource;
 }
 
 // Build a JSON API attributes object for a Kudu model instance as per
@@ -178,6 +185,7 @@ function buildRelationships( instance ) {
   // Build up an object representing the relationships between this instance
   // and others.
   let relationships = {};
+  let included = [];
 
   Object.keys(relationshipSchema).forEach(( key ) => {
 
@@ -193,6 +201,11 @@ function buildRelationships( instance ) {
     // which should be another model instance, becomes the data of the
     // relationship object. The nested instance itself becomes a compound
     // document as part of the "included" property at the top level.
+    //
+    // TODO: Verify whether included resources are allowed to have their own
+    // included resources (it appears that this is not allowed by the spec) and
+    // relationships (it appears that this is allowed but there are no examples
+    // to demonstrate it in the spec).
     const nested = instance[ key ];
 
     if ( nested ) {
@@ -203,7 +216,17 @@ function buildRelationships( instance ) {
       if ( Array.isArray(nested) ) {
 
         const type = nested[ 0 ].constructor.singular;
-        relationship.data = nested.map(( { id } ) => ({ id, type }));
+
+        relationship.data = [];
+        nested.forEach(( item ) => {
+
+          relationship.data.push({
+            id: item.id,
+            type,
+          });
+
+          included.push(buildResource(item));
+        });
       } else {
 
         const type = nested.constructor.singular;
@@ -211,11 +234,13 @@ function buildRelationships( instance ) {
           id: nested.id,
           type,
         };
+
+        included.push(buildResource(nested));
       }
     }
 
     relationships[ key ] = relationship;
   });
 
-  return relationships;
+  return { relationships, included };
 }

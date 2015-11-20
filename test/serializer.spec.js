@@ -214,6 +214,29 @@ describe('Serializer', () => {
         },
       });
     });
+
+    it('should include an "includes" key containing nested related instances', () => {
+      let instance = new Model({
+        name: 'test',
+        id: '1',
+        child: new SingleChild({ id: '2', name: 'child' }),
+      });
+      let serialized = Serialize.toJSON(instance);
+      expect(JSON.parse(serialized).data.included).to.deep.equal([
+        {
+          type: 'single',
+          id: '2',
+          attributes: { name: 'child' },
+          relationships: {},
+        },
+      ]);
+    });
+
+    it('should include an "includes" key when there are no nested instances', () => {
+      let instance = new Model({ name: 'test', id: '1' });
+      let serialized = Serialize.toJSON(instance);
+      expect(JSON.parse(serialized).data).not.to.have.property('included');
+    });
   });
 
   describe('#errorsToJSON', () => {
