@@ -9,6 +9,7 @@ describe('Serializer', () => {
   let kudu;
   let Model;
   let Child;
+  let SingleChild;
 
   beforeEach(() => {
     kudu = new Kudu();
@@ -24,9 +25,17 @@ describe('Serializer', () => {
       },
       relationships: {
         children: { type: 'child', hasMany: true },
+        child: { type: 'single' },
       },
     });
     Child = kudu.createModel('child', {
+      properties: {
+        name: {
+          type: String,
+        },
+      },
+    });
+    SingleChild = kudu.createModel('single', {
       properties: {
         name: {
           type: String,
@@ -123,6 +132,64 @@ describe('Serializer', () => {
             related: '/tests/1/children',
           },
         },
+        child: {
+          links: {
+            self: '/tests/1/relationships/child',
+            related: '/tests/1/child',
+          },
+        },
+      });
+    });
+
+    it('should include a resource identifier for relationships where possible', () => {
+      let instance = new Model({
+        name: 'test',
+        id: '1',
+        child: new SingleChild({ id: '2', name: 'child' }),
+      });
+      let serialized = Serialize.toJSON(instance);
+      expect(JSON.parse(serialized).data.relationships).to.deep.equal({
+        children: {
+          links: {
+            self: '/tests/1/relationships/children',
+            related: '/tests/1/children',
+          },
+        },
+        child: {
+          links: {
+            self: '/tests/1/relationships/child',
+            related: '/tests/1/child',
+          },
+          data: { id: '2', type: 'single' },
+        },
+      });
+    });
+
+    it('should include an array of resource identifiers for relationships where possible', () => {
+      let instance = new Model({
+        name: 'test',
+        id: '1',
+        children: [
+          new Child({ id: '2', name: 'child1' }),
+        ],
+      });
+      let serialized = Serialize.toJSON(instance);
+      expect(JSON.parse(serialized).data.relationships).to.deep.equal({
+        children: {
+          links: {
+            self: '/tests/1/relationships/children',
+            related: '/tests/1/children',
+          },
+          data: [
+            { id: '2', type: 'child' },
+          ],
+        },
+        child: {
+          links: {
+            self: '/tests/1/relationships/child',
+            related: '/tests/1/child',
+          },
+        },
       });
     });
 
@@ -137,6 +204,12 @@ describe('Serializer', () => {
           links: {
             self: '/tests/1/relationships/children',
             related: '/tests/1/children',
+          },
+        },
+        child: {
+          links: {
+            self: '/tests/1/relationships/child',
+            related: '/tests/1/child',
           },
         },
       });

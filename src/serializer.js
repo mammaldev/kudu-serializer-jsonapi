@@ -180,12 +180,41 @@ function buildRelationships( instance ) {
   let relationships = {};
 
   Object.keys(relationshipSchema).forEach(( key ) => {
-    relationships[ key ] = {
+
+    const relationship = {
       links: {
         self: `/${ plural }/${ instance.id }/relationships/${ key }`,
         related: `/${ plural }/${ instance.id }/${ key }`,
       },
     };
+
+    // If the instance has a property that matches the name of the relationship
+    // a subset (a "resource identifier object") of the value of that property,
+    // which should be another model instance, becomes the data of the
+    // relationship object. The nested instance itself becomes a compound
+    // document as part of the "included" property at the top level.
+    const nested = instance[ key ];
+
+    if ( nested ) {
+
+      // If the value is an array of instances the data of the relationship
+      // object will be an array of resource identifiers. At the moment we
+      // assume that each element of the array will be of the same type.
+      if ( Array.isArray(nested) ) {
+
+        const type = nested[ 0 ].constructor.singular;
+        relationship.data = nested.map(( { id } ) => ({ id, type }));
+      } else {
+
+        const type = nested.constructor.singular;
+        relationship.data = {
+          id: nested.id,
+          type,
+        };
+      }
+    }
+
+    relationships[ key ] = relationship;
   });
 
   return relationships;
