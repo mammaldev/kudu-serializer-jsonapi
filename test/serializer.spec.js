@@ -237,6 +237,30 @@ describe('Serializer', () => {
       ]);
     });
 
+    it('should handle arrays of nested related instances', () => {
+      let instance = new Model({
+        name: 'test',
+        id: '1',
+        children: [
+          new Child({ id: '2', name: 'child1' }),
+          new Child({ id: '3', name: 'child2' }),
+        ],
+      });
+      let serialized = Serialize.toJSON(instance);
+      expect(JSON.parse(serialized).included).to.deep.equal([
+        {
+          type: 'child',
+          id: '2',
+          attributes: { name: 'child1' },
+        },
+        {
+          type: 'child',
+          id: '3',
+          attributes: { name: 'child2' },
+        },
+      ]);
+    });
+
     it('should not include an "includes" key when there are no nested instances', () => {
       let instance = new Model({ name: 'test', id: '1' });
       let serialized = Serialize.toJSON(instance);

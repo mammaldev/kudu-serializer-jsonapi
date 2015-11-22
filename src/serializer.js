@@ -189,12 +189,15 @@ function buildResource( instance, requireId = true ) {
 function buildCompoundDocuments( instance ) {
 
   const relationshipSchema = instance.constructor.schema.relationships || {};
-  const included = [];
+  let included = [];
 
   Object.keys(relationshipSchema).forEach(( key ) => {
 
     const nested = instance[ key ];
-    if ( nested instanceof Model ) {
+
+    if ( Array.isArray(nested) ) {
+      included = included.concat(nested.map(buildResource));
+    } else if ( nested instanceof Model ) {
       included.push(buildResource(nested));
     }
   });
