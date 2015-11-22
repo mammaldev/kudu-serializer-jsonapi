@@ -45,6 +45,21 @@ export default {
     }
 
     if ( included && included.length ) {
+
+      // Remove any duplicate documents from the array of includes. We treat two
+      // documents as equal if they have the same type and identifier. This
+      // potentially reduces the size of data being sent over the wire.
+      included = included.reduce(( arr, item ) => {
+
+        if ( !arr.some(( doc ) =>
+          doc.type === item.type && doc.id === item.id)
+        ) {
+          arr.push(item);
+        }
+
+        return arr;
+      }, []);
+
       doc.included = included;
     }
 
@@ -201,18 +216,6 @@ function buildCompoundDocuments( instance ) {
       included.push(buildResource(nested));
     }
   });
-
-  // Remove any duplicate documents from the array of includes. We treat two
-  // documents as equal if they have the same type and identifier. This
-  // potentially reduces the size of data being sent over the wire.
-  included = included.reduce(( arr, item ) => {
-
-    if ( !arr.some(( doc ) => doc.type === item.type && doc.id === item.id) ) {
-      arr.push(item);
-    }
-
-    return arr;
-  }, []);
 
   return included;
 }
