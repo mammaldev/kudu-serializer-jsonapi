@@ -1,3 +1,5 @@
+import Model from 'kudu/lib/model';
+
 export default {
 
   // Serialize a Kudu model instance to a JSON string compliant with the JSON
@@ -12,8 +14,6 @@ export default {
   //   stringify    {Boolean}    If set, return a JSON string. Otherwise,
   //                             return a serializable subset of the model
   //                             instance as an object.
-  //   wrap         {Boolean}    If set, return a JSON API compliant primary
-  //                             data object.
   //   requireId    {Boolean}    If set, an "id" property must be present on
   //                             the instance. This is almost always the case,
   //                             except when the resource has been created on
@@ -21,7 +21,6 @@ export default {
   //
   toJSON( instance = null, {
     stringify = true,
-    wrap = true,
     requireId = true,
   } = {} ) {
 
@@ -30,46 +29,26 @@ export default {
       return stringify ? JSON.stringify(null) : null;
     }
 
-    // If we have an array of model instances we need to serialize each one
-    // individually before returning a JSON string of the resulting array.
+    const doc = Object.create(null);
+    let included;
+
     if ( Array.isArray(instance) ) {
 
-      let toSerialize = {
-        data: instance.map(( instance ) =>
-          this.toJSON(instance, {
-            stringify: false,
-            wrap: false,
-            requireId,
-          })
-        ),
-      };
+      doc.data = instance.map(buildResource);
+      included = instance
+        .map(buildCompoundDocuments)
+        .reduce(( flat, arr ) => flat.concat(arr), []);
+    } else {
 
-      if ( stringify ) {
-        return JSON.stringify(toSerialize);
-      }
-
-      return toSerialize;
+      doc.data = buildResource(instance, requireId);
+      included = buildCompoundDocuments(instance);
     }
 
-    // If we have a single instance we need to serialize it to a JSON API
-    // resource object.
-    let resource = buildResource(instance, requireId);
-
-    // If the "wrap" flag was set we need to wrap the resource in a JSON API
-    // primary data object.
-    if ( wrap ) {
-      resource = {
-        data: resource,
-      };
+    if ( included && included.length ) {
+      doc.included = included;
     }
 
-    // If the "stringify" flag was set we convert the new object into a
-    // serialized JSON string. Otherwise we just return the new object.
-    if ( stringify ) {
-      return JSON.stringify(resource);
-    }
-
-    return resource;
+    return stringify ? JSON.stringify(doc) : doc;
   },
 
   // Serialize an Error-like object or an array of Error-like objects to a JSON
@@ -120,7 +99,7 @@ export default {
 
 // Build a JSON API resource object for a Kudu model instance as per
 // http://jsonapi.org/format/#document-resource-objects
-function buildResource( instance, requireId ) {
+function buildResource( instance, requireId = true ) {
 
   // A JSON API resource object must contain top-level "id" and "type"
   // properties. We can infer the type from the name registered when the model
@@ -129,68 +108,37 @@ function buildResource( instance, requireId ) {
     throw new Error('Expected an "id" property.');
   }
 
-  const { relationships, included } = buildRelationships(instance);
-  const resource = {
-    id: instance.id,
-    type: instance.constructor.singular,
-    attributes: buildAttributes(instance),
-  };
-
-  if ( Object.keys(relationships).length ) {
-    resource.relationships = relationships;
-  }
-
-  if ( included.length ) {
-    resource.included = included;
-  }
-
-  return resource;
-}
-
-// Build a JSON API attributes object for a Kudu model instance as per
-// http://jsonapi.org/format/#document-resource-object-attributes
-function buildAttributes( instance ) {
-
   // Get the schema that applies to this model instance. The schema specifies
   // which properties can and cannot be transmitted to a client.
-  let schema = instance.constructor.schema.properties;
+  const schema = instance.constructor.schema.properties;
+  const resource = {
+    type: instance.constructor.singular,
+    id: instance.id,
+    attributes: Object.keys(instance).reduce(( obj, key ) => {
 
-  // Build up a new object containing only those properties that can be sent to
-  // a client as "attributes".
-  let attributes = {};
+      const keySchema = schema[ key ];
 
-  Object.keys(instance).forEach(( key ) => {
+      // If a property is present in the model schema, and the property is
+      // "public" then it will be included in the serialization. All properties
+      // are public by default.
+      if (
+        keySchema &&
+        ( keySchema.public === true || keySchema.public === undefined )
+      ) {
+        obj[ key ] = instance[ key ];
+      }
 
-    let keySchema = schema[ key ];
-
-    // If a property is present in the model schema, and the property is
-    // "public" then it will be included in the serialization. All properties
-    // are public by default.
-    if (
-      keySchema &&
-      ( keySchema.public === true || keySchema.public === undefined )
-    ) {
-      attributes[ key ] = instance[ key ];
-    }
-  });
-
-  return attributes;
-}
-
-// Build a JSON API relationship object for a Kudu model instance as per
-// http://jsonapi.org/format/#document-resource-object-relationships
-function buildRelationships( instance ) {
+      return obj;
+    }, {}),
+  };
 
   // Get any relationships that apply to this model instance.
-  let relationshipSchema = instance.constructor.schema.relationships || {};
-  let plural = instance.constructor.plural;
+  const relationshipSchema = instance.constructor.schema.relationships || {};
+  const plural = instance.constructor.plural;
 
-  // Build up an object representing the relationships between this instance
-  // and others.
-  let relationships = {};
-  let included = [];
-
-  Object.keys(relationshipSchema).forEach(( key ) => {
+  // Build up an object representing the relationships between this instance and
+  // others.
+  const relationships = Object.keys(relationshipSchema).reduce(( obj, key ) => {
 
     const relationship = {
       links: {
@@ -199,51 +147,57 @@ function buildRelationships( instance ) {
       },
     };
 
-    // If the instance has a property that matches the name of the relationship
-    // a subset (a "resource identifier object") of the value of that property,
-    // which should be another model instance, becomes the data of the
-    // relationship object. The nested instance itself becomes a compound
-    // document as part of the "included" property at the top level.
-    //
-    // TODO: Verify whether included resources are allowed to have their own
-    // included resources (it appears that this is not allowed by the spec) and
-    // relationships (it appears that this is allowed but there are no examples
-    // to demonstrate it in the spec).
     const nested = instance[ key ];
 
-    if ( nested ) {
+    // If the value is an array of instances the data of the relationship object
+    // will be an array of resource identifiers. At the moment we assume that
+    // each element of the array will be of the same type.
+    if ( Array.isArray(nested) ) {
 
-      // If the value is an array of instances the data of the relationship
-      // object will be an array of resource identifiers. At the moment we
-      // assume that each element of the array will be of the same type.
-      if ( Array.isArray(nested) ) {
+      const type = nested[ 0 ].constructor.singular;
 
-        const type = nested[ 0 ].constructor.singular;
+      relationship.data = nested.map(( item ) => ( {
+        id: item.id,
+        type,
+      } ));
+    } else if ( nested ) {
 
-        relationship.data = [];
-        nested.forEach(( item ) => {
-
-          relationship.data.push({
-            id: item.id,
-            type,
-          });
-
-          included.push(buildResource(item));
-        });
-      } else {
-
-        const type = nested.constructor.singular;
-        relationship.data = {
-          id: nested.id,
-          type,
-        };
-
-        included.push(buildResource(nested));
-      }
+      const type = nested.constructor.singular;
+      relationship.data = {
+        id: nested.id,
+        type,
+      };
     }
 
-    relationships[ key ] = relationship;
+    obj[ key ] = relationship;
+    return obj;
+  }, {});
+
+  // We only add the "relationships" member if the instance has at least one
+  // relationship. The JSON API specification states that a relationship object
+  // must contain at least one of a set of members and must therefore not be
+  // empty.
+  if ( Object.keys(relationships).length ) {
+    resource.relationships = relationships;
+  }
+
+  return resource;
+}
+
+// Build an array of resource objects representing compound documents as per
+// http://jsonapi.org/format/#document-compound-documents
+function buildCompoundDocuments( instance ) {
+
+  const relationshipSchema = instance.constructor.schema.relationships || {};
+  const included = [];
+
+  Object.keys(relationshipSchema).forEach(( key ) => {
+
+    const nested = instance[ key ];
+    if ( nested instanceof Model ) {
+      included.push(buildResource(nested));
+    }
   });
 
-  return { relationships, included };
+  return included;
 }
