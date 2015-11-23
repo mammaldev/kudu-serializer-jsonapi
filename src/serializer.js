@@ -155,12 +155,17 @@ function buildResource( instance, requireId = true ) {
   // others.
   const relationships = Object.keys(relationshipSchema).reduce(( obj, key ) => {
 
-    const relationship = {
-      links: {
+    const relationship = Object.create(null);
+
+    // If the instance has an identifier we add "links" to the relationship
+    // object. This is a quick and naïve way of preventing the inclusion of
+    // "links" when serialzing a new instance before posting it to a server.
+    if ( instance.id ) {
+      relationship.links = {
         self: `/${ plural }/${ instance.id }/relationships/${ key }`,
         related: `/${ plural }/${ instance.id }/${ key }`,
-      },
-    };
+      };
+    }
 
     const nested = instance[ key ];
 

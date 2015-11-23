@@ -147,6 +147,15 @@ describe('Serializer', () => {
       expect(JSON.parse(serialized).data).to.not.have.property('relationships');
     });
 
+    it('should not include relationship "links" when the instance has no identifier', () => {
+      let instance = new Model({ name: 'test' });
+      let serialized = Serialize.toJSON(instance, { requireId: false });
+      expect(JSON.parse(serialized).data.relationships).to.deep.equal({
+        children: {},
+        child: {},
+      });
+    });
+
     it('should include a resource identifier for relationships where possible', () => {
       let instance = new Model({
         name: 'test',
