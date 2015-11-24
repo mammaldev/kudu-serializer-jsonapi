@@ -208,6 +208,56 @@ describe('Serializer', () => {
       });
     });
 
+    it('should treat a relationship value as an identifier if it\'s a string', () => {
+      let instance = new Model({
+        name: 'test',
+        id: '1',
+        child: '2',
+      });
+      let serialized = Serialize.toJSON(instance);
+      expect(JSON.parse(serialized).data.relationships).to.deep.equal({
+        children: {
+          links: {
+            self: '/tests/1/relationships/children',
+            related: '/tests/1/children',
+          },
+        },
+        child: {
+          links: {
+            self: '/tests/1/relationships/child',
+            related: '/tests/1/child',
+          },
+          data: { id: '2', type: 'single' },
+        },
+      });
+    });
+
+    it('should treat an array of relationship values as identifiers if they\'re a strings', () => {
+      let instance = new Model({
+        name: 'test',
+        id: '1',
+        children: [ '2' ],
+      });
+      let serialized = Serialize.toJSON(instance);
+      expect(JSON.parse(serialized).data.relationships).to.deep.equal({
+        children: {
+          links: {
+            self: '/tests/1/relationships/children',
+            related: '/tests/1/children',
+          },
+          data: [
+            { id: '2', type: 'child' },
+          ],
+        },
+        child: {
+          links: {
+            self: '/tests/1/relationships/child',
+            related: '/tests/1/child',
+          },
+        },
+      });
+    });
+
     it('should include relationships in each element of an array', () => {
       let instances = [
         new Model({ name: '1', id: '1' }),

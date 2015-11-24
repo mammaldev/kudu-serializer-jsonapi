@@ -168,23 +168,23 @@ function buildResource( instance, requireId = true ) {
     }
 
     const nested = instance[ key ];
+    const type = relationshipSchema[ key ].type;
 
     // If the value is an array of instances the data of the relationship object
-    // will be an array of resource identifiers. At the moment we assume that
-    // each element of the array will be of the same type.
+    // will be an array of resource identifiers. Otherwise it will be a single
+    // resource identifier. If the related data is an object we assume it is a
+    // model instance and therefore has an "id" property. If it's a string we
+    // assume that string represents the unique identifier of another document.
     if ( Array.isArray(nested) ) {
 
-      const type = nested[ 0 ].constructor.singular;
-
       relationship.data = nested.map(( item ) => ( {
-        id: item.id,
+        id: item.id ? item.id : item,
         type,
       } ));
     } else if ( nested ) {
 
-      const type = nested.constructor.singular;
       relationship.data = {
-        id: nested.id,
+        id: nested.id ? nested.id : nested,
         type,
       };
     }
@@ -216,7 +216,12 @@ function buildCompoundDocuments( instance ) {
     const nested = instance[ key ];
 
     if ( Array.isArray(nested) ) {
-      included = included.concat(nested.map(buildResource));
+      included = included.concat(nested.map(( item ) => {
+
+        if ( item instanceof Model ) {
+          return buildResource(item);
+        }
+      }));
     } else if ( nested instanceof Model ) {
       included.push(buildResource(nested));
     }
