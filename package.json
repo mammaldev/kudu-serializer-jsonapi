@@ -1,6 +1,6 @@
 {
   "name": "kudu-serializer-jsonapi",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "main": "lib/serializer.js",
   "scripts": {
     "compile": "babel -d lib/ src/",
