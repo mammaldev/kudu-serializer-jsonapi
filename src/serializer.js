@@ -1,5 +1,3 @@
-import Model from 'kudu/lib/model';
-
 export default {
 
   // Serialize a Kudu model instance to a JSON string compliant with the JSON
@@ -218,11 +216,11 @@ function buildCompoundDocuments( instance ) {
     if ( Array.isArray(nested) ) {
       included = included.concat(nested.map(( item ) => {
 
-        if ( item instanceof Model ) {
+        if ( item && item.id ) {
           return buildResource(item);
         }
       }));
-    } else if ( nested instanceof Model ) {
+    } else if ( nested && nested.id ) {
       included.push(buildResource(nested));
     }
   });
