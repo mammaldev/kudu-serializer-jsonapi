@@ -34,6 +34,9 @@ describe('Serializer', () => {
           type: String,
         },
       },
+      relationships: {
+        deep: { type: 'single' },
+      },
     });
     SingleChild = kudu.createModel('single', {
       properties: {
@@ -142,7 +145,7 @@ describe('Serializer', () => {
     });
 
     it('should not include a "relationships" key when there are no relationships', () => {
-      let instance = new Child({ name: 'test', id: '1' });
+      let instance = new SingleChild({ name: 'test', id: '1' });
       let serialized = Serialize.toJSON(instance);
       expect(JSON.parse(serialized).data).to.not.have.property('relationships');
     });
@@ -311,11 +314,21 @@ describe('Serializer', () => {
           type: 'child',
           id: '2',
           attributes: { name: 'child1' },
+          relationships: {
+            deep: {
+              links: { related: "/childs/2/deep", self: "/childs/2/relationships/deep" }
+            }
+          },
         },
         {
           type: 'child',
           id: '3',
           attributes: { name: 'child2' },
+          relationships: {
+            deep: {
+              links: { related: "/childs/3/deep", self: "/childs/3/relationships/deep" }
+            }
+          },
         },
       ]);
     });
@@ -335,6 +348,11 @@ describe('Serializer', () => {
           type: 'child',
           id: '2',
           attributes: { name: 'child1' },
+          relationships: {
+            deep: {
+              links: { related: "/childs/2/deep", self: "/childs/2/relationships/deep" }
+            }
+          },
         },
       ]);
     });
@@ -362,6 +380,11 @@ describe('Serializer', () => {
           type: 'child',
           id: '2',
           attributes: { name: 'child1' },
+          relationships: {
+            deep: {
+              links: { related: "/childs/2/deep", self: "/childs/2/relationships/deep" }
+            }
+          },
         },
       ]);
     });
