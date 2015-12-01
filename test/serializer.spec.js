@@ -333,6 +333,52 @@ describe('Serializer', () => {
       ]);
     });
 
+    it('should include deeply nested compound documents', () => {
+      let instance = new Model({
+        name: 'test',
+        id: '1',
+        children: [
+          new Child({ id: '2', name: 'child1', deep: new SingleChild({ id: '4', name: 'deep1' }) }),
+          new Child({ id: '3', name: 'child2', deep: new SingleChild({ id: '5', name: 'deep2' }) }),
+        ],
+      });
+      let serialized = Serialize.toJSON(instance);
+      expect(JSON.parse(serialized).included).to.deep.equal([
+        {
+          type: 'single',
+          id: '4',
+          attributes: { name: 'deep1' },
+        },
+        {
+          type: 'single',
+          id: '5',
+          attributes: { name: 'deep2' },
+        },
+        {
+          type: 'child',
+          id: '2',
+          attributes: { name: 'child1' },
+          relationships: {
+            deep: {
+              links: { related: "/childs/2/deep", self: "/childs/2/relationships/deep" },
+              data: { type: 'single', id: '4' },
+            }
+          },
+        },
+        {
+          type: 'child',
+          id: '3',
+          attributes: { name: 'child2' },
+          relationships: {
+            deep: {
+              links: { related: "/childs/3/deep", self: "/childs/3/relationships/deep" },
+              data: { type: 'single', id: '5' },
+            }
+          },
+        },
+      ]);
+    });
+
     it('should not include duplicate compound documents', () => {
       let instance = new Model({
         name: 'test',

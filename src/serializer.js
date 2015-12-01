@@ -33,9 +33,7 @@ export default {
     if ( Array.isArray(instance) ) {
 
       doc.data = instance.map(buildResource);
-      included = instance
-        .map(buildCompoundDocuments)
-        .reduce(( flat, arr ) => flat.concat(arr), []);
+      included = flatten(instance.map(buildCompoundDocuments));
     } else {
 
       doc.data = buildResource(instance, requireId);
@@ -214,16 +212,47 @@ function buildCompoundDocuments( instance ) {
     const nested = instance[ key ];
 
     if ( Array.isArray(nested) ) {
+
       included = included.concat(nested.map(( item ) => {
 
-        if ( item && item.id ) {
-          return buildResource(item);
+        if ( item && item.constructor.schema ) {
+          return buildCompoundDocuments(item);
         }
       }));
+
+      included = included.concat(
+        nested
+        .map(( item ) => {
+
+          if ( item && item.id ) {
+            return buildResource(item);
+          }
+        })
+        .filter(( item ) => item)
+      );
     } else if ( nested && nested.id ) {
       included.push(buildResource(nested));
     }
   });
 
-  return included;
+  return flatten(included);
+}
+
+// Flatten deeply nested arrays.
+function flatten( arr ) {
+
+  let flat = [];
+
+  for ( let i = 0; i < arr.length; i++ ) {
+
+    let val = arr[ i ];
+
+    if ( Array.isArray(val) ) {
+      flat = flat.concat(flatten(val));
+    } else {
+      flat.push(val);
+    }
+  }
+
+  return flat;
 }
