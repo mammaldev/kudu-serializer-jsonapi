@@ -228,14 +228,13 @@ function buildCompoundDocuments( instance ) {
             return buildResource(item);
           }
         })
-        .filter(( item ) => item)
       );
     } else if ( nested && nested.id ) {
       included.push(buildResource(nested));
     }
   });
 
-  return flatten(included);
+  return flatten(included.filter(( item ) => item));
 }
 
 // Flatten deeply nested arrays.
